@@ -12,9 +12,16 @@ jQuery(document).ready(function($) {
     const $notesListPane = $('.notes-list-pane');
     const $notesListContainer = $notesListPane.find('.notes-list-container');
     const $notesList = $notesListContainer.find('.notes-list');
-    const $noteItems = $notesList.find('.note-item'); // Cache initial items
-    const $notesLoader = $notesListContainer.find('.notes-loader'); // Loader for the list
+    let $noteItems = $notesList.find('.note-item');
+    const $notesLoader = $notesListContainer.find('.notes-loader');
     const $noNotesFilteredMessage = $notesListContainer.find('.no-notes-found-filtered');
+    const $loadMoreBtn = $notesListContainer.find('.load-more-notes');
+    const $searchInput = $notesListPane.find('.notes-search-input');
+    const $sortSelect = $notesListPane.find('.notes-sort-select');
+    const postsPerPage = notesData && notesData.posts_per_page ? parseInt(notesData.posts_per_page,10) : 10;
+    let searchTerm = '';
+    let sortOrder = $sortSelect.val();
+    let activeType = 'all'; // currently selected note type slug
 
     const $contentPane = $('.notes-content-pane');
     const $contentArea = $contentPane.find('.note-content-area');
@@ -34,10 +41,22 @@ jQuery(document).ready(function($) {
     const $clearHashtagButton = $hashtagFilterDisplay.find('.clear-hashtag-filter');
 
     let currentAjaxRequest = null; // To abort previous requests
-    let currentFilterType = 'all'; // 'all', 'type', or 'hashtag'
-    let currentFilterValue = 'all'; // type slug or hashtag value
+    let currentPage = 1;
+    let readNotes = JSON.parse(localStorage.getItem('readNotes') || '[]');
+    let currentFilterType = 'all'; // 'all', 'hashtag'
+    let currentFilterValue = 'all'; // hashtag value when filtering by hashtag
 
     // === Initial Setup ===
+    function applyReadStatus() {
+        $noteItems.each(function() {
+            const id = $(this).data('note-id');
+            if (readNotes.includes(id)) {
+                $(this).addClass('active');
+            }
+        });
+    }
+    applyReadStatus();
+    sortNotes($sortSelect.val());
     // Optional: Load the first note automatically if the list is not empty
     // if ($noteItems.length > 0) {
     //     const firstNoteId = $noteItems.first().data('note-id');
@@ -135,9 +154,8 @@ jQuery(document).ready(function($) {
 
         if (noteData.note_types && noteData.note_types.length > 0) {
             typeHtml = noteData.note_types.map(type =>
-                // Make type clickable to filter list
-                `<button class="meta-type-filter" data-filter-type="${type.slug}">${type.name}</button>`
-            ).join(', '); // Join with comma and space
+                `<button class="meta-type-filter" data-filter-type="${type.slug}" style="background-color:${type.color};border-color:${type.color};color:#000;">${type.name}</button>`
+            ).join(', ');
             $contentMetaType.html(typeHtml);
             $contentMeta.show(); // Show meta container
         } else {
@@ -214,6 +232,7 @@ jQuery(document).ready(function($) {
                 }
             }
 
+            // No search filtering here; handled server-side
             if (showItem) {
                 $item.show().removeClass('filtered-out');
                 visibleCount++;
@@ -238,15 +257,90 @@ jQuery(document).ready(function($) {
          }
 
          // Update active class on type filter buttons
-         $filterButtons.removeClass('active');
-         if (filterType === 'all') {
-             $filterButtons.filter('[data-filter-type="all"]').addClass('active');
-         } else if (filterType === 'type') {
-             $filterButtons.filter(`[data-filter-type="${filterValue}"]`).addClass('active');
-         }
-         // If hashtag filter is active, no type button should be active
+        $filterButtons.removeClass('active');
+        if (filterType === 'all') {
+            $filterButtons.filter('[data-filter-type="all"]').addClass('active');
+        } else if (filterType === 'type') {
+            $filterButtons.filter(`[data-filter-type="${filterValue}"]`).addClass('active');
+        }
+        // If hashtag filter is active, no type button should be active
     }
 
+    function sortNotes(order) {
+        const items = $notesList.children('.note-item').get();
+        items.sort((a, b) => {
+            const aDate = parseInt($(a).data('note-date'), 10);
+            const bDate = parseInt($(b).data('note-date'), 10);
+            return order === 'asc' ? aDate - bDate : bDate - aDate;
+        });
+        $.each(items, (idx, itm) => $notesList.append(itm));
+    }
+
+    function appendNotes(items) {
+        items.forEach(note => {
+            const typeSlugs = note.types.map(t => t.slug);
+            const typeClasses = note.types.map(t => 'note-type-' + t.slug).join(' ');
+            const li = $(
+                `<li class="note-item ${typeClasses}" data-note-id="${note.id}" data-note-types='${JSON.stringify(typeSlugs)}' data-note-date="${note.timestamp}" data-hashtags="">`+
+                    '<div class="note-item-header">'+
+                        `<h3 class="note-item-title"><a href="#" class="note-title-link" data-note-id="${note.id}">${note.title}</a></h3>`+
+                        `<span class="note-item-date">${note.date}</span>`+
+                    '</div>'+
+                '</li>'
+            );
+            if (readNotes.includes(note.id)) { li.addClass('active'); }
+            $notesList.append(li);
+        });
+        $noteItems = $notesList.find('.note-item');
+    }
+
+    function fetchNotes(reset = false) {
+        if (reset) {
+            currentPage = 1;
+            $loadMoreBtn.data('next-page', 2);
+            $notesList.empty();
+        }
+
+        const data = {
+            page: currentPage,
+            per_page: postsPerPage,
+            order: sortOrder
+        };
+        if (activeType !== 'all') {
+            data.note_type = activeType;
+        }
+        if (searchTerm) {
+            data.search = searchTerm;
+        }
+
+        $notesLoader.show();
+        $.ajax({
+            url: notesData.rest_url + notesData.list_endpoint,
+            method: 'GET',
+            data: data,
+            beforeSend: function(xhr) { xhr.setRequestHeader('X-WP-Nonce', notesData.nonce); }
+        }).done(function(resp) {
+            if (resp && resp.notes) {
+                appendNotes(resp.notes);
+                sortNotes(sortOrder);
+                currentPage++;
+                if (currentPage <= resp.max_pages) {
+                    $loadMoreBtn.show();
+                } else {
+                    $loadMoreBtn.hide();
+                }
+                filterNotesList(currentFilterType, currentFilterValue);
+            }
+        }).fail(function() {
+            console.error('Failed to fetch notes');
+        }).always(function() {
+            $notesLoader.hide();
+        });
+    }
+
+    function loadMoreNotes() {
+        fetchNotes(false);
+    }
     // === Event Handlers ===
 
     // Click on a note item in the list
@@ -261,10 +355,12 @@ jQuery(document).ready(function($) {
         console.log("Note item clicked:", noteId, $thisItem); // Debug
 
         if (noteId && !$thisItem.hasClass('selected')) { // Only load if not already selected
-            // Mark as selected and active (read)
             $notesList.find('.note-item').removeClass('selected');
-            $thisItem.addClass('selected active'); // Add 'active' to mark as read visually
-
+            $thisItem.addClass('selected active');
+            if (!readNotes.includes(noteId)) {
+                readNotes.push(noteId);
+                localStorage.setItem('readNotes', JSON.stringify(readNotes));
+            }
             loadNoteContent(noteId);
         } else if (!noteId) {
              console.error("Notes Error: Clicked item has no note-id.", $thisItem);
@@ -276,19 +372,28 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         const $button = $(this);
         const filterSlug = $button.data('filter-type');
-        console.log("Type filter clicked:", filterSlug); // Debug
 
-        if ($button.hasClass('active') && currentFilterType === 'type') return; // Do nothing if already active type
+        if (filterSlug === activeType) return;
 
-        if (filterSlug === 'all') {
-            currentFilterType = 'all';
-            currentFilterValue = 'all';
-            filterNotesList('all', 'all');
-        } else {
-            currentFilterType = 'type';
-            currentFilterValue = filterSlug;
-            filterNotesList('type', filterSlug);
-        }
+        activeType = filterSlug === 'all' ? 'all' : filterSlug;
+        currentFilterType = 'type';
+        currentFilterValue = activeType;
+        fetchNotes(true);
+    });
+
+    $searchInput.on('input', function() {
+        searchTerm = $(this).val();
+        fetchNotes(true);
+    });
+
+    $sortSelect.on('change', function() {
+        sortOrder = $(this).val();
+        fetchNotes(true);
+    });
+
+    $loadMoreBtn.on('click', function(e) {
+        e.preventDefault();
+        loadMoreNotes();
     });
 
     // Click on a hashtag link within the note content
@@ -313,18 +418,15 @@ jQuery(document).ready(function($) {
      $contentPane.on('click', '.note-content-meta button.meta-type-filter', function(e) {
          e.preventDefault();
          const filterSlug = $(this).data('filter-type');
-         console.log("Meta type filter clicked:", filterSlug); // Debug
-         if (filterSlug) {
-             // Check if this filter is already active
-             const $correspondingButton = $filterButtons.filter(`[data-filter-type="${filterSlug}"]`);
-             if ($correspondingButton.hasClass('active') && currentFilterType === 'type') return;
+         if (!filterSlug) return;
 
-             currentFilterType = 'type';
-             currentFilterValue = filterSlug;
-             filterNotesList('type', filterSlug);
-             // Scroll list pane to top (optional)
-             $notesListContainer.scrollTop(0);
-         }
+         if (filterSlug === activeType) return;
+
+         activeType = filterSlug;
+         currentFilterType = 'type';
+         currentFilterValue = activeType;
+         fetchNotes(true);
+         $notesListContainer.scrollTop(0);
      });
 
     // Click on the clear hashtag filter button
@@ -334,7 +436,8 @@ jQuery(document).ready(function($) {
         // Revert to the 'all' filter
         currentFilterType = 'all';
         currentFilterValue = 'all';
-        filterNotesList('all', 'all');
+        fetchNotes(true);
+        filterNotesList('type', activeType);
     });
 
 });

@@ -57,13 +57,24 @@
                         <aside class="notes-list-pane">
                             <div class="notes-list-pane-inner">
                                 <div class="notes-filters">
+                                    <input type="text" class="notes-search-input" placeholder="<?php esc_attr_e( 'Ara...', 'fox-child' ); ?>" />
+                                    <select class="notes-sort-select">
+                                        <option value="desc"><?php esc_html_e( 'En Yeni', 'fox-child' ); ?></option>
+                                        <option value="asc"><?php esc_html_e( 'En Eski', 'fox-child' ); ?></option>
+                                    </select>
                                     <div class="note-type-filters">
                                         <button class="filter-button active" data-filter-type="all"><?php esc_html_e('Tümü', 'fox-child'); ?></button>
                                         <?php
                                         $note_types = get_terms( array( 'taxonomy' => 'note_type', 'hide_empty' => true, 'orderby' => 'name', 'order' => 'ASC' ) );
                                         if ( ! is_wp_error($note_types) && ! empty($note_types) ) {
                                             foreach ( $note_types as $note_type ) {
-                                                printf( '<button class="filter-button" data-filter-type="%s">%s</button>', esc_attr( $note_type->slug ), esc_html( $note_type->name ) );
+                                                $color = fox_child_get_color_for_slug( $note_type->slug );
+                                                printf(
+                                                    '<button class="filter-button" data-filter-type="%1$s" style="background-color:%2$s;border-color:%2$s;color:#000;">%3$s</button>',
+                                                    esc_attr( $note_type->slug ),
+                                                    esc_attr( $color ),
+                                                    esc_html( $note_type->name )
+                                                );
                                             }
                                         }
                                         ?>
@@ -76,7 +87,15 @@
                                 <div class="notes-list-container">
                                     <ul class="notes-list">
                                         <?php
-                                        $notes_args = array( 'post_type' => 'bbb_note', 'post_status' => 'publish', 'posts_per_page' => -1, 'orderby' => 'date', 'order' => 'DESC');
+                                        $notes_per_page = 10;
+                                        $notes_args = array(
+                                            'post_type'      => 'bbb_note',
+                                            'post_status'    => 'publish',
+                                            'posts_per_page' => $notes_per_page,
+                                            'paged'          => 1,
+                                            'orderby'        => 'date',
+                                            'order'          => 'DESC'
+                                        );
                                         $notes_query = new WP_Query( $notes_args );
                                         if ( $notes_query->have_posts() ) : while ( $notes_query->have_posts() ) : $notes_query->the_post();
                                             $note_id = get_the_ID();
@@ -90,6 +109,7 @@
                                             <li class="note-item <?php echo esc_attr($note_type_classes); ?>"
                                                 data-note-id="<?php echo esc_attr($note_id); ?>"
                                                 data-note-types='<?php echo json_encode($note_type_slugs); ?>'
+                                                data-note-date="<?php echo esc_attr( get_the_date( 'U' ) ); ?>"
                                                 data-hashtags="<?php echo esc_attr($hashtags_attr); ?>">
                                                 <div class="note-item-header">
                                                     <h3 class="note-item-title">
@@ -102,7 +122,9 @@
                                             <li class="no-notes-found"><?php esc_html_e( 'Gösterilecek not bulunamadı.', 'fox-child' ); ?></li>
                                         <?php endif; ?>
                                     </ul>
+                                    <div class="no-notes-found-filtered" style="display:none;"><?php esc_html_e( 'Filtrelenmiş not bulunamadı.', 'fox-child' ); ?></div>
                                     <div class="notes-loader" style="display: none; text-align: center; padding: 20px;"><?php esc_html_e('Yükleniyor...', 'fox-child'); ?></div>
+                                    <button class="load-more-notes" data-next-page="2" <?php if ( $notes_query->max_num_pages <= 1 ) echo 'style="display:none;"'; ?>><?php esc_html_e('Daha Fazla', 'fox-child'); ?></button>
                                 </div>
                             </div>
                         </aside>
