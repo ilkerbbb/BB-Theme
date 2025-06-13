@@ -31,6 +31,13 @@ if ( ! defined( 'FOX_CHILD_VERSION' ) ) {
 // Ons <-> Gram çevrim faktörü
 define( 'OUNCES_TO_GRAMS', 31.1034768 );
 
+// Utility: deterministically assign a color for a given slug
+function fox_child_get_color_for_slug( $slug ) {
+    $palette = array( '#f94144', '#f3722c', '#f9c74f', '#90be6d', '#577590', '#277da1', '#43aa8b', '#f9844a', '#9d4edd', '#7209b7' );
+    $index   = abs( crc32( $slug ) ) % count( $palette );
+    return $palette[ $index ];
+}
+
 /**
  * Gerekirse çeviri dosyalarını yükle, menü konumlarını kaydet ve tema desteği ekle.
  */
@@ -148,11 +155,13 @@ function fox_child_enqueue_styles_scripts() {
         if ( file_exists( $notes_script_path ) ) {
             wp_enqueue_script( 'bbb-notes-page', get_stylesheet_directory_uri() . '/js/notes-page.js', array( 'jquery' ), FOX_CHILD_VERSION, true );
             wp_localize_script( 'bbb-notes-page', 'bbbNotesData', array(
-                'rest_url' => esc_url_raw( rest_url() ),
-                'nonce' => wp_create_nonce( 'wp_rest' ),
-                'api_endpoint' => 'bbb-notes/v1/note/', // Note ID will be appended by JS
-                'text_loading' => esc_html__( 'Yükleniyor...', 'fox-child' ),
-                'text_error' => esc_html__( 'Not yüklenirken bir hata oluştu.', 'fox-child' ),
+                'rest_url'      => esc_url_raw( rest_url() ),
+                'nonce'         => wp_create_nonce( 'wp_rest' ),
+                'api_endpoint'  => 'bbb-notes/v1/note/',  // Note ID will be appended by JS
+                'list_endpoint' => 'bbb-notes/v1/list',
+                'posts_per_page'=> 10,
+                'text_loading'  => esc_html__( 'Yükleniyor...', 'fox-child' ),
+                'text_error'    => esc_html__( 'Not yüklenirken bir hata oluştu.', 'fox-child' ),
             ) );
         } else {
              error_log("Notes Page JS not found: " . $notes_script_path);
@@ -312,6 +321,69 @@ function fox_child_register_note_api_endpoint() {
 }
 add_action( 'rest_api_init', 'fox_child_register_note_api_endpoint' );
 
+function fox_child_register_note_list_api_endpoint() {
+    register_rest_route( 'bbb-notes/v1', '/list', array(
+        'methods'             => WP_REST_Server::READABLE,
+        'callback'            => 'fox_child_get_notes_list',
+        'permission_callback' => '__return_true',
+        'args'                => array(
+            'page' => array(
+                'validate_callback' => 'is_numeric',
+                'default'           => 1,
+            ),
+            'per_page' => array(
+                'validate_callback' => 'is_numeric',
+                'default'           => 10,
+            ),
+        ),
+    ) );
+}
+add_action( 'rest_api_init', 'fox_child_register_note_list_api_endpoint' );
+
+function fox_child_get_notes_list( WP_REST_Request $request ) {
+    $page     = max( 1, intval( $request['page'] ) );
+    $per_page = max( 1, intval( $request['per_page'] ) );
+
+    $query = new WP_Query( array(
+        'post_type'      => 'bbb_note',
+        'post_status'    => 'publish',
+        'posts_per_page' => $per_page,
+        'paged'          => $page,
+        'orderby'        => 'date',
+        'order'          => 'DESC',
+    ) );
+
+    $items = array();
+    foreach ( $query->posts as $post ) {
+        $terms = get_the_terms( $post->ID, 'note_type' );
+        $types = array();
+        if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
+            foreach ( $terms as $term ) {
+                $types[] = array(
+                    'slug'  => $term->slug,
+                    'name'  => $term->name,
+                    'color' => fox_child_get_color_for_slug( $term->slug ),
+                );
+            }
+        }
+        $items[] = array(
+            'id'        => $post->ID,
+            'title'     => get_the_title( $post ),
+            'date'      => get_the_date( '', $post ),
+            'timestamp' => get_the_date( 'U', $post ),
+            'types'     => $types,
+        );
+    }
+
+    return new WP_REST_Response(
+        array(
+            'notes'     => $items,
+            'max_pages' => $query->max_num_pages,
+        ),
+        200
+    );
+}
+
 function fox_child_get_note_data_for_modal( WP_REST_Request $request ) {
     $note_id = (int) $request['id'];
     $note = get_post( $note_id );
@@ -338,10 +410,11 @@ function fox_child_get_note_data_for_modal( WP_REST_Request $request ) {
     $note_terms = get_the_terms( $note_id, 'note_type' );
     $note_types_data = array();
     if ( ! is_wp_error($note_terms) && ! empty($note_terms) ) {
-        foreach ($note_terms as $term) {
+        foreach ( $note_terms as $term ) {
             $note_types_data[] = array(
-                'name' => esc_html( $term->name ),
-                'slug' => esc_html( $term->slug ),
+                'name'  => esc_html( $term->name ),
+                'slug'  => esc_html( $term->slug ),
+                'color' => fox_child_get_color_for_slug( $term->slug ),
             );
         }
     }
