@@ -4,35 +4,15 @@
  * Includes Dynamic Market Summary widget.
  * Includes Podcast Widget with custom player interface.
  * Includes Dynamic Latest News widget via API (PHP Proxy).
- * !! Kısıtlama eklentileri için içerik kontrolü eklendi (PMP Entegrasyonu) !!
- * --- REVISED: Removed conditional widgets for 'bbb-news' page (now uses its own template) ---
- * --- REVISED: Replaced hardcoded market summary with dynamic data from transient, showing percentage change. ---
+ * !! Kısıtlama eklentileri için içerik kontrolü güncellendi (WooCommerce Memberships) !!
+ * --- REVISED: Removed access control logic from this file. The parent template (`bb-theme.php`) is now responsible for deciding if the sidebar should be loaded. ---
  *
  * @package Fox_Child
  */
 
-// --- Sayfa Yetki Kontrolü (PMP Entegrasyonu) ---
-global $post; // Mevcut sayfa/yazı nesnesini al
-
-// Varsayılan olarak sidebar'ı göster.
-$should_show_sidebar = true;
-
-// Sadece tekil sayfa/yazılarda ve PMP fonksiyonu varsa kontrol et.
-if ( is_singular() && $post && function_exists('pmpro_has_membership_access') ) {
-    // Eğer kullanıcı o anki içeriğe erişemiyorsa, sidebar'ı gösterme.
-    if ( ! pmpro_has_membership_access( $post->ID ) ) {
-        $should_show_sidebar = false;
-    }
-}
-// Arşiv sayfaları (kategori, etiket vb.) veya ana sayfa gibi durumlarda
-// sidebar'ın gösterilip gösterilmeyeceğine karar vermek için ek mantık gerekebilir.
-// Şimdilik sadece tekil içeriklerde kısıtlama kontrolü yapıyoruz.
-
-// Eğer sidebar gösterilmeyecekse, hiçbir şey yapmadan çık
-if ( ! $should_show_sidebar ) {
-    return;
-}
-// --- Yetki Kontrolü Sonu ---
+// --- YETKİ KONTROLÜ BU DOSYADAN KALDIRILDI ---
+// Bu sidebar dosyası, sadece çağrıldığı ana şablon dosyası (`bb-theme.php` gibi)
+// zaten yetki kontrolünü geçtiyse yüklenir. Bu nedenle buradaki kontrol gereksizdir.
 
 ?>
 <aside class="right-sidebar"> <?php // BB Theme sağ sidebar ?>

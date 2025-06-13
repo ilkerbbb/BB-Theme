@@ -5,11 +5,9 @@
  * Bu şablon, BB Theme header, ticker ve ikincil menüsünü içerir ancak sidebar
  * veya bb-theme.php'ye özgü diğer içerik bölümlerini içermez.
  * Sayfa düzenleyicisinden eklenen içerik veya kısa kodlar tam genişlikte gösterilir.
- * Ana sayfa başlığı gizlenmiştir.
  *
  * @package Fox_Child
  */
-
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -26,13 +24,7 @@
 			<div class="header-left">
                 <div class="logo">
                     <a href="<?php echo esc_url( home_url( '/' ) ); ?>" rel="home">
-                        <?php
-                        if ( function_exists( 'the_custom_logo' ) && has_custom_logo() ) {
-                            the_custom_logo();
-                        } else {
-                            bloginfo( 'name' );
-                        }
-                        ?>
+                        <?php if ( function_exists( 'the_custom_logo' ) && has_custom_logo() ) { the_custom_logo(); } else { bloginfo( 'name' ); } ?>
                     </a>
                 </div>
 				<nav class="primary-navigation">
@@ -59,7 +51,6 @@
 
 	<div class="main-container">
 
-		<?php // === İKİNCİL NAVİGASYON BURAYA EKLENDİ === ?>
 		<section class="content-header">
 			<nav class="secondary-navigation">
 				<?php
@@ -78,43 +69,27 @@
 				?>
 			</nav>
 		</section>
-		<?php // === İKİNCİL NAVİGASYON SONU === ?>
-
 
 		<div class="content-body blank-content-body">
-
 			<main class="main-column full-width">
-
 				<article id="post-<?php the_ID(); ?>" <?php post_class( 'bb-theme-blank-page' ); ?>>
+					<div class="entry-content blank-page-content">
+						<?php
+						// Bu şablon, kısıtlama kurallarını da doğal olarak destekler.
+						// the_content() çağrısı, eklentinin kararını (içeriği veya kısıtlama mesajını gösterme) ekrana basar.
+						if ( have_posts() ) :
+							while ( have_posts() ) :
+								the_post();
+								the_content();
+							endwhile;
+						endif;
+						?>
+					</div>
+				</article>
+			</main>
+		</div>
 
-					<?php
-					if ( have_posts() ) :
-						while ( have_posts() ) :
-							the_post();
-							?>
-							<?php // Sayfa başlığı gizli ?>
-							<?php // the_title( '<h1 class="entry-title blank-page-title">', '</h1>' ); ?>
-
-							<div class="entry-content blank-page-content">
-								<?php the_content(); ?>
-							</div><!-- .entry-content -->
-
-							<?php
-						endwhile;
-					endif;
-					?>
-
-				</article><!-- #post-<?php the_ID(); ?> -->
-
-			</main> <?php // .main-column sonu ?>
-
-			<?php // Sidebar bu şablonda YOK ?>
-
-		</div> <?php // .content-body sonu ?>
-
-	</div> <?php // .main-container sonu ?>
-
-	<?php // Footer bu şablonda YOK ?>
+	</div>
 
 	<?php wp_footer(); ?>
 </body>

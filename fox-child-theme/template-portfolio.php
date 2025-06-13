@@ -1,37 +1,8 @@
 <?php
 /**
  * Template Name: BB Theme - Portföy
- * !! Kısıtlama eklentilerinin doğru çalışması için YETKİ KONTROLÜ eklendi (PMP Entegrasyonu) !!
  * @package Fox_Child
  */
-
-// --- PMP Entegrasyonu: Özel fonksiyonu kaldırdık, doğrudan PMP fonksiyonunu kullanacağız ---
-/*
-// --- EKLENTİYE ÖZEL YETKİ KONTROLÜ ---
-// Kullandığınız eklentinin fonksiyonunu buraya girin.
-// Bu fonksiyon, mevcut kullanıcının BU SAYFAYI (get_the_ID()) görme yetkisi
-// olup olmadığını kontrol etmeli ve true/false döndürmelidir.
-function fox_child_can_user_view_content() {
-    // EĞER EKLENTİ FONKSİYONU VARSA:
-    // Örnek Paid Memberships Pro:
-    // if ( function_exists('pmpro_has_access') ) {
-    //     return pmpro_has_access( get_the_ID(), null, true ); // Üçüncü parametre genellikle post ID'yi alır
-    // }
-    // Örnek Restrict Content Pro:
-    // if ( function_exists('rcp_user_can_access') ) {
-    //     return rcp_user_can_access( get_current_user_id(), get_the_ID() );
-    // }
-
-    // !! GERÇEK EKLENTİ FONKSİYONUNUZU BURAYA EKLEYİN !!
-    // Örnek Placeholder (Eğer fonksiyon bulamazsanız, en azından giriş yapmış mı diye bakar):
-    // return is_user_logged_in();
-
-    // Varsayılan olarak, fonksiyon bulunamazsa veya kontrol başarısız olursa erişimi engelle
-     return false; // VEYA eklenti yoksa true dönebilirsiniz: return true;
-}
-// --- EKLENTİ KONTROLÜ SONU ---
-*/
-
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -44,7 +15,6 @@ function fox_child_can_user_view_content() {
 <body <?php body_class(); ?>>
 
 	<header class="site-header">
-		<!-- Header içeriği aynı kalıyor -->
         <div class="header-content">
 			<div class="header-left">
                 <div class="logo">
@@ -75,33 +45,33 @@ function fox_child_can_user_view_content() {
 	<div class="main-container portfolio-page-container">
 
 		<section class="content-header">
-            <!-- Navigasyon aynı kalıyor -->
 			<nav class="secondary-navigation">
-				<?php
-				if ( has_nav_menu( 'bb_secondary_menu' ) ) {
-					wp_nav_menu( array( 'theme_location' => 'bb_secondary_menu', 'container' => false, 'menu_class' => 'secondary-nav-list', 'depth' => 1 ) );
-				} else {
-					echo '<ul class="secondary-nav-list"><li><a href="#">' . esc_html__( 'Menü Ata', 'fox-child' ) . '</a></li></ul>';
-				}
-				?>
+				<?php if ( has_nav_menu( 'bb_secondary_menu' ) ) { wp_nav_menu( array( 'theme_location' => 'bb_secondary_menu', 'container' => false, 'menu_class' => 'secondary-nav-list', 'depth' => 1 ) ); } else { echo '<ul class="secondary-nav-list"><li><a href="#">' . esc_html__( 'Menü Ata', 'fox-child' ) . '</a></li></ul>'; } ?>
 			</nav>
 		</section>
 
         <?php
-        // === ANA WORDPRESS DÖNGÜSÜ VE YETKİ KONTROLÜ (PMP Entegrasyonu) ===
         if ( have_posts() ) :
-            while ( have_posts() ) :
-                the_post();
+            while ( have_posts() ) : the_post();
 
-                // ** PMP YETKİ KONTROLÜ **
-                $has_access = true;
-                if ( function_exists('pmpro_has_membership_access') ) {
-                    $has_access = pmpro_has_membership_access( get_the_ID() );
-                }
+                // 1. WooCommerce'in kararını bir değişkene al.
+                ob_start();
+                the_content();
+                $original_content = ob_get_clean();
 
-                if ( $has_access ) : // Eğer kullanıcı yetkiliyse...
+                // 2. İçerikte kısıtlama mesajı var mı diye kontrol et.
+                $is_restricted_by_plugin = ( strpos( $original_content, 'wc-memberships-content-restricted' ) !== false );
 
-                    // --- Portföy verilerini hazırla (Yetkili kullanıcı için) ---
+                if ( $is_restricted_by_plugin ) {
+                    // --- ERİŞİM YOK: Eklentinin oluşturduğu mesajı bas. ---
+                    // Portföy sayfasının sidebar'ı olmadığı için doğrudan main içinde basabiliriz.
+                    echo '<main class="main-column">';
+                    echo $original_content;
+                    echo '</main>';
+                } else {
+                    // --- ERİŞİM VAR: Portföy sayfasının içeriğini göster. ---
+                    
+                    // --- Portföy verilerini hazırla ---
                     $portfolio_options = get_option( 'fox_child_portfolio_options' );
                     $stats = $portfolio_options['stats'] ?? [];
                     $total_return_text = $stats['total_return_text'] ?? 'N/A';
@@ -120,50 +90,48 @@ function fox_child_can_user_view_content() {
                             }
                         }
                     }
-                    // --- Veri hazırlama sonu ---
-
+                    
                     // --- Sayfanın Kendi İçeriğini (Giriş Metni vb.) Göster ---
-                     $page_content_intro = get_the_content(); // İçeriği al
-                     if( !empty(trim($page_content_intro)) ) {
-                        echo '<header class="page-header portfolio-header">';
-                        echo '<div class="page-content portfolio-intro">';
-                        echo apply_filters( 'the_content', $page_content_intro ); // Filtreleyerek bas
-                        echo '</div>';
-                         echo '</header>';
-                     }
-                    // --- Giriş Metni Sonu ---
-
+                    // $original_content, kısıtlama mesajı içermediği için burada güvenle kullanılabilir.
+                    if( !empty(trim($original_content)) ) {
+                       echo '<header class="page-header portfolio-header">';
+                       echo '<div class="page-content portfolio-intro">';
+                       echo do_shortcode($original_content);
+                       echo '</div>';
+                        echo '</header>';
+                    }
+                    
                     // --- PORTFÖY GÖRSEL ALANINI OLUŞTUR ---
                     ?>
                     <div class="content-body portfolio-content-layout">
                         <div class="portfolio-layout-primary">
                             <section class="portfolio-section portfolio-stats-section">
-                              <h2 class="portfolio-section-title">Genel Durum</h2>
-                              <div class="stats-container">
+                                <h2 class="portfolio-section-title">Genel Durum</h2>
+                                <div class="stats-container">
                                 <div class="stat-item"><strong>Toplam Getiri</strong><br><span id="toplamGetiri"><?php echo esc_html( $total_return_text ); ?></span></div>
                                 <div class="stat-item"><strong>Benchmark Üzeri</strong><br><span id="benchmarkUzeri"><?php echo esc_html( $benchmark_outperformance_text ); ?></span></div>
                                 <div class="stat-item"><strong>Reel Getiri</strong><br><?php echo esc_html( $real_return_text ); ?></div>
                                 <div class="stat-item"><strong>Son Güncelleme</strong><br><?php echo esc_html( $last_updated_date ); ?></div>
-                              </div>
+                                </div>
                             </section>
                             <section class="portfolio-section portfolio-chart-section">
-                              <h2 class="portfolio-section-title">BBB vs Benchmark (Kümülatif Getiri)</h2>
-                              <div class="chart-container"><canvas id="cumulativePerformanceChart"></canvas></div>
+                                <h2 class="portfolio-section-title">BBB vs Benchmark (Kümülatif Getiri)</h2>
+                                <div class="chart-container"><canvas id="cumulativePerformanceChart"></canvas></div>
                             </section>
                             <section class="portfolio-section portfolio-table-section">
-                              <h2 class="portfolio-section-title">Portföy Tablosu</h2>
-                              <div class="table-wrapper">
+                                <h2 class="portfolio-section-title">Portföy Tablosu</h2>
+                                <div class="table-wrapper">
                                 <table class="portfolio-table">
-                                  <thead>
+                                    <thead>
                                     <tr>
-                                      <th class="col-left"><?php esc_html_e( 'Varlık Sınıfı', 'fox-child' ); ?></th>
-                                      <th class="col-left"><?php esc_html_e( 'Sembol', 'fox-child' ); ?></th>
-                                      <th class="col-left"><?php esc_html_e( 'Varlık', 'fox-child' ); ?></th>
-                                      <th class="col-right"><?php esc_html_e( '% Ağırlık', 'fox-child' ); ?></th>
-                                      <th class="col-right"><?php esc_html_e( 'Net K/Z %', 'fox-child' ); ?></th>
+                                        <th class="col-left"><?php esc_html_e( 'Varlık Sınıfı', 'fox-child' ); ?></th>
+                                        <th class="col-left"><?php esc_html_e( 'Sembol', 'fox-child' ); ?></th>
+                                        <th class="col-left"><?php esc_html_e( 'Varlık', 'fox-child' ); ?></th>
+                                        <th class="col-right"><?php esc_html_e( '% Ağırlık', 'fox-child' ); ?></th>
+                                        <th class="col-right"><?php esc_html_e( 'Net K/Z %', 'fox-child' ); ?></th>
                                     </tr>
-                                  </thead>
-                                  <tbody>
+                                    </thead>
+                                    <tbody>
                                     <?php if ( ! empty( $assets ) ) : foreach ( $assets as $asset ) :
                                         $asset_class = $asset['class'] ?? ''; $asset_symbol = $asset['symbol'] ?? ''; $asset_name = $asset['name'] ?? '';
                                         $quantity = $asset['quantity'] ?? 0; $avg_cost = $asset['avg_cost'] ?? 0; $current_price = $asset['current_price'] ?? 0;
@@ -179,9 +147,9 @@ function fox_child_can_user_view_content() {
                                             <td class="col-right <?php echo $pl_class; ?>"><?php echo $pl_prefix . esc_html( number_format_i18n( $asset_pl, 1 ) ); ?>%</td>
                                         </tr>
                                     <?php endforeach; else : echo '<tr><td colspan="5">' . esc_html__( 'Portföy varlığı girilmemiş.', 'fox-child' ) . '</td></tr>'; endif; ?>
-                                  </tbody>
+                                    </tbody>
                                 </table>
-                              </div>
+                                </div>
                             </section>
                         </div>
                         <div class="portfolio-layout-secondary">
@@ -189,32 +157,19 @@ function fox_child_can_user_view_content() {
                                 <h2 class="portfolio-section-title chart-title">Portföy Dağılımı</h2>
                                 <div class="chart-container"><canvas id="pieChart"></canvas></div>
                             </section>
-                             <section class="portfolio-section portfolio-bar-chart-section">
+                                <section class="portfolio-section portfolio-bar-chart-section">
                                 <h2 class="portfolio-section-title chart-title">Aylık Performans</h2>
-                                 <div class="chart-container"><canvas id="monthlyPerformanceChart"></canvas></div>
+                                    <div class="chart-container"><canvas id="monthlyPerformanceChart"></canvas></div>
                             </section>
                         </div>
                     </div>
                     <?php
-                    // --- PORTFÖY GÖRSEL ALANI SONU ---
+                }
 
-                else : // Kullanıcı yetkili DEĞİLSE...
-
-                    // PMP'nin kısıtlama mesajını göstermesi için the_content() çağır.
-                    the_content();
-
-                endif; // Yetki kontrolü sonu
-
-            endwhile; // Döngüyü bitir
-        else :
-             echo '<p>' . esc_html__( 'İçerik bulunamadı.', 'fox-child' ) . '</p>';
-        endif; // Döngü kontrolünü bitir
-        // === ANA WORDPRESS DÖNGÜSÜ SONU ===
+            endwhile;
+        endif;
         ?>
-
-	</div> <?php // .main-container sonu ?>
-
-	<?php // Footer yok ?>
+	</div>
 
 	<?php wp_footer(); ?>
 </body>

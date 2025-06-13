@@ -307,7 +307,6 @@ body.page-template-bb-theme .main-container.bb-theme-dashboard-container {
     display: block; /* Tek blok */
     margin-bottom: 35px; /* ===> Araştırma bölümüyle arayı biraz açalım <=== */
     padding-bottom: 35px;
-    border-bottom: 1px solid var(--border-color);
 }
 
 /* Ana Manşet V7 (Resim Sol, İçerik Sağ) */
@@ -423,9 +422,9 @@ body.dark-mode .hero-media-box-v7 .media-box-thumbnail {
 
 /* --- Araştırma Bölümü (Bloomberg 2. Grid Stili - V8) --- */
 .dashboard-research-grid-v8 {
-    margin-bottom: 40px;
-    padding-bottom: 35px;
-    border-bottom: 1px solid var(--border-color);
+    margin-top: 35px; /* Standart üst boşluk */
+    padding-top: 35px; /* Standart üst iç boşluk */
+    border-top: 1px solid var(--border-color); /* Standart ayraç */
 }
 .dashboard-research-grid-v8:last-of-type {
     border-bottom: none; margin-bottom: 0; padding-bottom: 0;
@@ -541,10 +540,9 @@ body.dark-mode .hero-media-box-v7 .media-box-thumbnail {
 
 /* --- YENİ BÜLTEN BÖLÜMÜ (Ortalanmış 2'li Grid - V11) --- */
 .dashboard-bulten-grid-v11 {
-    margin-bottom: 40px;
-    padding: 35px 0; /* Üstten ve alttan boşluk */
-    border-top: 1px solid var(--border-color); /* Önceki bölümden ayırmak için üst çizgi */
-    border-bottom: 1px solid var(--border-color); /* Altına da çizgi */
+    margin-top: 35px; /* Standart üst boşluk */
+    padding-top: 35px; /* Sadece üst iç boşluk */
+    border-top: 1px solid var(--border-color); /* Standart ayraç */
 }
 .dashboard-bulten-grid-v11:last-of-type {
     border-bottom: none; margin-bottom: 0; padding-bottom: 0;
@@ -1677,3 +1675,174 @@ body.single-bbb_note .entry-content a.note-hashtag-link:hover
     to { transform: rotate(360deg); }
 }
 /* === YENİ SONU === */
+
+/* ===================================================== */
+/* === BB Theme - Son Notlar Bölümü (Bloomberg Tarzı V2) === */
+/* ===================================================== */
+
+.dashboard-latest-notes {
+    margin-top: 35px; /* Standart üst boşluk */
+    padding-top: 35px; /* Standart üst iç boşluk */
+    border-top: 1px solid var(--border-color); /* Standart ayraç */
+}
+
+.dashboard-latest-notes .section-title.notes-title {
+    font-size: 1.4em;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--text-color);
+    display: inline-block;
+}
+
+.notes-list-wrapper.bloomberg-style-list {
+    width: 100%;
+}
+
+/* Liste Başlığı (Başlık, Kategori, Tarih) */
+.bloomberg-style-list .list-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px 8px 10px;
+    border-bottom: 1px solid var(--secondary-text-color);
+    font-size: 0.75em;
+    font-weight: 600;
+    color: var(--secondary-text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Sütun Genişlikleri */
+.list-header .col-title {
+    flex: 1;
+    padding-left: 40px; /* Numara için boşluk bırak */
+}
+.list-header .col-category {
+    width: 20%;
+    text-align: left;
+}
+.list-header .col-date {
+    width: 15%;
+    text-align: right;
+}
+
+/* Liste İçeriği */
+.bloomberg-style-list ul {
+    list-style: none;
+    counter-reset: notes-counter;
+    padding: 0;
+    margin: 0;
+}
+
+.bloomberg-style-list li {
+    border-bottom: 1px solid var(--border-color-light);
+    transition: background-color 0.15s ease;
+}
+.bloomberg-style-list li:hover {
+    background-color: rgba(128, 128, 128, 0.05);
+}
+body.dark-mode .bloomberg-style-list li:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Tek Satır Linki ve Sütun Yapısı */
+.bloomberg-style-list .note-row-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 10px;
+    text-decoration: none;
+    color: var(--text-color); /* Varsayılan metin rengi */
+}
+
+/* Başlık Link Rengi Sorununu Çözme */
+.bloomberg-style-list .note-row-link:hover .note-title {
+    color: var(--link-hover-color);
+}
+
+/* Sütun İçerikleri */
+.note-row-link span {
+    display: block;
+    line-height: 1.4;
+    transition: color 0.2s ease;
+}
+
+.note-row-link .note-title {
+    flex: 1;
+    font-size: 0.95em;
+    font-weight: 500;
+    position: relative; /* Numara için */
+    padding-left: 40px;
+}
+
+/* Not Numarası */
+.note-row-link .note-title::before {
+    counter-increment: notes-counter;
+    content: counter(notes-counter, decimal);
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--secondary-text-color);
+    min-width: 25px;
+    text-align: right;
+}
+
+.note-row-link .note-category {
+    width: 20%;
+    text-align: left;
+    font-size: 0.85em;
+    color: var(--link-hover-color); /* Vurgu rengi */
+    font-weight: 500;
+}
+
+.note-row-link .note-date {
+    width: 15%;
+    text-align: right;
+    font-size: 0.85em;
+    color: var(--secondary-text-color);
+}
+
+/* "Tümünü Gör" Linkini Sağa Yaslama */
+.dashboard-latest-notes .section-more-link {
+    margin-top: 25px;
+    text-align: right;
+}
+.dashboard-latest-notes .section-more-link a {
+    color: var(--text-color);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    transition: color 0.2s ease;
+}
+.dashboard-latest-notes .section-more-link a:hover {
+    color: var(--link-hover-color);
+    text-decoration: underline;
+}
+
+/* === Genel Bölüm Linki Hizalaması === */
+.dashboard-category-grid .section-more-link {
+    margin-top: 25px; /* Tüm "Tümünü Gör" linkleri için standart üst boşluk */
+}
+
+/* ===================================================== */
+/* === Kısıtlama Mesajı Konteyner Düzeltmesi === */
+/* ===================================================== */
+
+/* Hedef: Kısıtlama mesajının etrafındaki, WooCommerce tarafından eklenen stilize kutu */
+.wc-memberships-restriction-message.woocommerce-info {
+    background-color: transparent !important; /* Beyaz arkaplanı kaldır */
+    border: none !important;                  /* Kenarlıkları kaldır */
+    padding: 0 !important;                    /* İç boşlukları sıfırla */
+    color: inherit !important;                /* Yazı rengi sorunlarını önle */
+    margin: 0;                                /* Dış boşlukları sıfırla */
+}
+
+/* Bizim kendi kısıtlama mesajımıza üstten ve alttan biraz boşluk verelim ki yapışık durmasın */
+.pmpro-custom-restriction.zerohedge-style {
+    padding-top: 50px;
+    padding-bottom: 50px;
+}

@@ -1,12 +1,8 @@
 <?php
 /**
  * Template Name: BB Theme - BBB News
- * Description: Custom template for the BBB News page with a specific sidebar layout and wider content area.
- * --- REVISED: Added PMP access check ---
- *
  * @package Fox_Child
  */
-
 ?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -16,10 +12,9 @@
 	<title><?php wp_title( '|', true, 'right' ); ?><?php bloginfo( 'name' ); ?></title>
 	<?php wp_head(); ?>
 </head>
-<body <?php body_class('bbb-news-template'); // Özel bir body class ekleyelim ?>>
+<body <?php body_class('bbb-news-template'); ?>>
 
 	<header class="site-header">
-		<?php // BB Theme Header içeriği ?>
         <div class="header-content">
 			<div class="header-left">
                 <div class="logo">
@@ -50,91 +45,68 @@
 	<div class="main-container bbb-news-page-container">
 
 		<section class="content-header">
-			<?php // BB Theme İkincil Menü ?>
             <nav class="secondary-navigation">
-				<?php
-				if ( has_nav_menu( 'bb_secondary_menu' ) ) {
-					wp_nav_menu( array( 'theme_location' => 'bb_secondary_menu', 'container' => false, 'menu_class' => 'secondary-nav-list', 'depth' => 1 ) );
-				} else {
-					echo '<ul class="secondary-nav-list"><li><a href="#">' . esc_html__( 'Menü Ata', 'fox-child' ) . '</a></li></ul>';
-				}
-				?>
+				<?php if ( has_nav_menu( 'bb_secondary_menu' ) ) { wp_nav_menu( array( 'theme_location' => 'bb_secondary_menu', 'container' => false, 'menu_class' => 'secondary-nav-list', 'depth' => 1 ) ); } else { echo '<ul class="secondary-nav-list"><li><a href="#">' . esc_html__( 'Menü Ata', 'fox-child' ) . '</a></li></ul>'; } ?>
 			</nav>
 		</section>
 
 		<div class="content-body bbb-news-layout">
-
-			<main class="main-column bbb-news-content">
-                <?php
-                // === ANA WORDPRESS DÖNGÜSÜ VE YETKİ KONTROLÜ (PMP Entegrasyonu) ===
-                if ( have_posts() ) :
-                    while ( have_posts() ) :
-                        the_post();
-
-                        // ** PMP YETKİ KONTROLÜ **
-                        $has_access = true; // Varsayılan olarak erişim var sayalım
-                        if ( function_exists('pmpro_has_membership_access') ) {
-                            // Fonksiyon varsa, mevcut sayfa için erişimi kontrol et
-                            $has_access = pmpro_has_membership_access( get_the_ID() );
-                        }
-
-                        if ( $has_access ) : // Eğer kullanıcı yetkiliyse...
-                            ?>
-                            <article id="post-<?php the_ID(); ?>" <?php post_class( 'bbb-news-page-article' ); ?>>
-                                <?php // Sayfa başlığını gizleyebilir veya gösterebiliriz ?>
-                                <?php // the_title( '<h1 class="entry-title bbb-news-page-title">', '</h1>' ); ?>
-
-                                <div class="entry-content bbb-news-page-content">
-                                    <?php
-                                    // Sayfanın kendi içeriğini (filtreler, liste vb.) gösterir
-                                    the_content();
-                                    ?>
-                                </div><!-- .entry-content -->
-                            </article>
-                            <?php
-                        else : // Kullanıcı yetkili DEĞİLSE...
-                            // PMP'nin kısıtlama mesajını göstermesi için the_content() çağır.
-                            // Bu, functions.php'deki filtremiz aracılığıyla özel mesajımızı tetikleyecektir.
-                            the_content();
-                        endif; // Yetki kontrolü sonu
-
-                    endwhile; // Ana döngüyü bitir
-                else :
-                    // İçerik bulunamazsa
-                    get_template_part( 'template-parts/content', 'none' );
-                endif; // Ana döngü kontrolünü bitir
-                // === ANA WORDPRESS DÖNGÜSÜ SONU ===
-                ?>
-			</main> <?php // .main-column sonu ?>
-
             <?php
-            // Sidebar'ı sadece yetkili kullanıcılar için göster
-            if ( $has_access ) : ?>
-                <aside class="right-sidebar bbb-news-sidebar">
-                    <?php // Widget'ları kısa kodlarla ekliyoruz ?>
+            if ( have_posts() ) :
+                while ( have_posts() ) : the_post();
 
-                    <section class="widget keyword-cloud-widget">
-                        <h3 class="widget-title"><?php esc_html_e( 'Günün Öne Çıkan Kelimeleri', 'fox-child' ); ?></h3>
-                        <?php echo do_shortcode('[bbb_word_cloud]'); ?>
-                    </section>
+                    // 1. WooCommerce'in kararını bir değişkene al.
+                    ob_start();
+                    the_content();
+                    $original_content = ob_get_clean();
 
-                    <section class="widget sentiment-gauge-widget">
-                        <?php echo do_shortcode('[bbb_gauge title="Piyasa Hissiyatı"]'); ?>
-                    </section>
+                    // 2. İçerikte kısıtlama mesajı var mı diye kontrol et.
+                    $is_restricted_by_plugin = ( strpos( $original_content, 'wc-memberships-content-restricted' ) !== false );
+                    
+                    // Ana içerik sütununu aç
+                    echo '<main class="main-column bbb-news-content">';
 
-                    <section class="widget sentiment-timeseries-widget">
-                         <h3 class="widget-title"><?php esc_html_e( 'Günlük Duyarlılık Zaman Serisi', 'fox-child' ); ?></h3>
-                        <?php echo do_shortcode('[bbb_sentiment_chart]'); ?>
-                    </section>
+                    if ( $is_restricted_by_plugin ) {
+                        // --- ERİŞİM YOK: Eklentinin oluşturduğu mesajı bas. ---
+                        echo $original_content;
+                    } else {
+                        // --- ERİŞİM VAR: Sayfanın asıl içeriğini (kısa kodlar vb.) göster. ---
+                        ?>
+                        <article id="post-<?php the_ID(); ?>" <?php post_class( 'bbb-news-page-article' ); ?>>
+                            <div class="entry-content bbb-news-page-content">
+                                <?php echo do_shortcode($original_content); // İçeriği tekrar çalıştırarak kısa kodların işlemesini sağla ?>
+                            </div>
+                        </article>
+                        <?php
+                    }
+                    
+                    // Ana içerik sütununu kapat
+                    echo '</main>';
 
-                </aside> <?php // .right-sidebar sonu ?>
-            <?php endif; // $has_access kontrolü sonu (sidebar için) ?>
+                    // --- SIDEBAR KONTROLÜ ---
+                    // Sidebar, sadece içerik kısıtlı DEĞİLSE gösterilir.
+                    if ( ! $is_restricted_by_plugin ) : ?>
+                        <aside class="right-sidebar bbb-news-sidebar">
+                            <section class="widget keyword-cloud-widget">
+                                <h3 class="widget-title"><?php esc_html_e( 'Günün Öne Çıkan Kelimeleri', 'fox-child' ); ?></h3>
+                                <?php echo do_shortcode('[bbb_word_cloud]'); ?>
+                            </section>
+                            <section class="widget sentiment-gauge-widget">
+                                <?php echo do_shortcode('[bbb_gauge title="Piyasa Hissiyatı"]'); ?>
+                            </section>
+                            <section class="widget sentiment-timeseries-widget">
+                                 <h3 class="widget-title"><?php esc_html_e( 'Günlük Duyarlılık Zaman Serisi', 'fox-child' ); ?></h3>
+                                <?php echo do_shortcode('[bbb_sentiment_chart]'); ?>
+                            </section>
+                        </aside>
+                    <?php endif;
 
-		</div> <?php // .content-body sonu ?>
+                endwhile;
+            endif;
+            ?>
+		</div>
 
-	</div> <?php // .main-container sonu ?>
-
-	<?php // Footer bu şablonda yok ?>
+	</div>
 
 	<?php wp_footer(); ?>
 </body>
