@@ -12,9 +12,14 @@ jQuery(document).ready(function($) {
     const $notesListPane = $('.notes-list-pane');
     const $notesListContainer = $notesListPane.find('.notes-list-container');
     const $notesList = $notesListContainer.find('.notes-list');
-    const $noteItems = $notesList.find('.note-item'); // Cache initial items
-    const $notesLoader = $notesListContainer.find('.notes-loader'); // Loader for the list
+    let $noteItems = $notesList.find('.note-item');
+    const $notesLoader = $notesListContainer.find('.notes-loader');
     const $noNotesFilteredMessage = $notesListContainer.find('.no-notes-found-filtered');
+    const $loadMoreBtn = $notesListContainer.find('.load-more-notes');
+    const $searchInput = $notesListPane.find('.notes-search-input');
+    const $sortSelect = $notesListPane.find('.notes-sort-select');
+    const postsPerPage = notesData && notesData.posts_per_page ? parseInt(notesData.posts_per_page,10) : 10;
+    let searchTerm = '';
 
     const $contentPane = $('.notes-content-pane');
     const $contentArea = $contentPane.find('.note-content-area');
@@ -34,10 +39,22 @@ jQuery(document).ready(function($) {
     const $clearHashtagButton = $hashtagFilterDisplay.find('.clear-hashtag-filter');
 
     let currentAjaxRequest = null; // To abort previous requests
+    let currentPage = 1;
+    let readNotes = JSON.parse(localStorage.getItem('readNotes') || '[]');
     let currentFilterType = 'all'; // 'all', 'type', or 'hashtag'
     let currentFilterValue = 'all'; // type slug or hashtag value
 
     // === Initial Setup ===
+    function applyReadStatus() {
+        $noteItems.each(function() {
+            const id = $(this).data('note-id');
+            if (readNotes.includes(id)) {
+                $(this).addClass('active');
+            }
+        });
+    }
+    applyReadStatus();
+    sortNotes($sortSelect.val());
     // Optional: Load the first note automatically if the list is not empty
     // if ($noteItems.length > 0) {
     //     const firstNoteId = $noteItems.first().data('note-id');
@@ -135,9 +152,8 @@ jQuery(document).ready(function($) {
 
         if (noteData.note_types && noteData.note_types.length > 0) {
             typeHtml = noteData.note_types.map(type =>
-                // Make type clickable to filter list
-                `<button class="meta-type-filter" data-filter-type="${type.slug}">${type.name}</button>`
-            ).join(', '); // Join with comma and space
+                `<button class="meta-type-filter" data-filter-type="${type.slug}" style="background-color:${type.color};border-color:${type.color};color:#000;">${type.name}</button>`
+            ).join(', ');
             $contentMetaType.html(typeHtml);
             $contentMeta.show(); // Show meta container
         } else {
@@ -192,6 +208,7 @@ jQuery(document).ready(function($) {
         console.log(`Filtering list by: ${filterType} - ${filterValue}`); // Debug
         let visibleCount = 0;
         const lowerCaseFilterValue = filterValue.toLowerCase().trim();
+        const searchLower = searchTerm.toLowerCase();
 
         $notesList.find('.note-item').each(function() {
             const $item = $(this);
@@ -214,6 +231,12 @@ jQuery(document).ready(function($) {
                 }
             }
 
+            if (showItem && searchLower) {
+                const titleText = $item.find('.note-item-title').text().toLowerCase();
+                if (!titleText.includes(searchLower)) {
+                    showItem = false;
+                }
+            }
             if (showItem) {
                 $item.show().removeClass('filtered-out');
                 visibleCount++;
@@ -238,13 +261,60 @@ jQuery(document).ready(function($) {
          }
 
          // Update active class on type filter buttons
-         $filterButtons.removeClass('active');
-         if (filterType === 'all') {
-             $filterButtons.filter('[data-filter-type="all"]').addClass('active');
-         } else if (filterType === 'type') {
-             $filterButtons.filter(`[data-filter-type="${filterValue}"]`).addClass('active');
-         }
-         // If hashtag filter is active, no type button should be active
+        $filterButtons.removeClass('active');
+        if (filterType === 'all') {
+            $filterButtons.filter('[data-filter-type="all"]').addClass('active');
+        } else if (filterType === 'type') {
+            $filterButtons.filter(`[data-filter-type="${filterValue}"]`).addClass('active');
+        }
+        // If hashtag filter is active, no type button should be active
+    }
+
+    function sortNotes(order) {
+        const items = $notesList.children('.note-item').get();
+        items.sort((a, b) => {
+            const aDate = parseInt($(a).data('note-date'), 10);
+            const bDate = parseInt($(b).data('note-date'), 10);
+            return order === 'asc' ? aDate - bDate : bDate - aDate;
+        });
+        $.each(items, (idx, itm) => $notesList.append(itm));
+    }
+
+    function loadMoreNotes() {
+        const nextPage = parseInt($loadMoreBtn.data('next-page'), 10);
+        $notesLoader.show();
+        $.ajax({
+            url: notesData.rest_url + notesData.list_endpoint,
+            method: 'GET',
+            data: { page: nextPage, per_page: postsPerPage },
+            beforeSend: function(xhr) { xhr.setRequestHeader('X-WP-Nonce', notesData.nonce); }
+        }).done(function(resp) {
+            if (resp && resp.notes) {
+                resp.notes.forEach(note => {
+                    const typeSlugs = note.types.map(t => t.slug);
+                    const typeClasses = note.types.map(t => 'note-type-' + t.slug).join(' ');
+                    const li = $(
+                        `<li class="note-item ${typeClasses}" data-note-id="${note.id}" data-note-types='${JSON.stringify(typeSlugs)}' data-note-date="${note.timestamp}" data-hashtags="">
+                            <div class="note-item-header">
+                                <h3 class="note-item-title"><a href="#" class="note-title-link" data-note-id="${note.id}">${note.title}</a></h3>
+                                <span class="note-item-date">${note.date}</span>
+                            </div>
+                        </li>`
+                    );
+                    if (readNotes.includes(note.id)) { li.addClass('active'); }
+                    $notesList.append(li);
+                });
+                $noteItems = $notesList.find('.note-item');
+                filterNotesList(currentFilterType, currentFilterValue);
+                sortNotes($sortSelect.val());
+                $loadMoreBtn.data('next-page', nextPage + 1);
+                if (nextPage >= resp.max_pages) { $loadMoreBtn.hide(); }
+            }
+        }).fail(function() {
+            console.error('Failed to load more notes');
+        }).always(function() {
+            $notesLoader.hide();
+        });
     }
 
     // === Event Handlers ===
@@ -261,10 +331,12 @@ jQuery(document).ready(function($) {
         console.log("Note item clicked:", noteId, $thisItem); // Debug
 
         if (noteId && !$thisItem.hasClass('selected')) { // Only load if not already selected
-            // Mark as selected and active (read)
             $notesList.find('.note-item').removeClass('selected');
-            $thisItem.addClass('selected active'); // Add 'active' to mark as read visually
-
+            $thisItem.addClass('selected active');
+            if (!readNotes.includes(noteId)) {
+                readNotes.push(noteId);
+                localStorage.setItem('readNotes', JSON.stringify(readNotes));
+            }
             loadNoteContent(noteId);
         } else if (!noteId) {
              console.error("Notes Error: Clicked item has no note-id.", $thisItem);
@@ -284,11 +356,29 @@ jQuery(document).ready(function($) {
             currentFilterType = 'all';
             currentFilterValue = 'all';
             filterNotesList('all', 'all');
+            sortNotes($sortSelect.val());
         } else {
             currentFilterType = 'type';
             currentFilterValue = filterSlug;
             filterNotesList('type', filterSlug);
+            sortNotes($sortSelect.val());
+            sortNotes($sortSelect.val());
         }
+    });
+
+    $searchInput.on('input', function() {
+        searchTerm = $(this).val();
+        filterNotesList(currentFilterType, currentFilterValue);
+        sortNotes($sortSelect.val());
+    });
+
+    $sortSelect.on('change', function() {
+        sortNotes($(this).val());
+    });
+
+    $loadMoreBtn.on('click', function(e) {
+        e.preventDefault();
+        loadMoreNotes();
     });
 
     // Click on a hashtag link within the note content
@@ -335,6 +425,7 @@ jQuery(document).ready(function($) {
         currentFilterType = 'all';
         currentFilterValue = 'all';
         filterNotesList('all', 'all');
+        sortNotes($sortSelect.val());
     });
 
 });

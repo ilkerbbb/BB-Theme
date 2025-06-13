@@ -1322,6 +1322,23 @@ body.dark-mode .notes-filters {
     gap: 8px;
 }
 
+.notes-search-input {
+    flex: 1 1 150px;
+    padding: 4px 8px;
+    font-size: 0.75em;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.notes-sort-select {
+    padding: 4px 8px;
+    font-size: 0.75em;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+}
+
 .notes-filters .filter-button {
     background-color: var(--button-bg);
     color: var(--button-text);
@@ -1670,6 +1687,20 @@ body.single-bbb_note .entry-content a.note-hashtag-link:hover
     animation: spin 1s ease-in-out infinite;
     margin-left: 10px;
     vertical-align: middle;
+}
+.load-more-notes {
+    display: block;
+    margin: 10px auto;
+    padding: 8px 16px;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+.load-more-notes:hover {
+    background-color: var(--button-hover-bg);
 }
 @keyframes spin {
     to { transform: rotate(360deg); }
