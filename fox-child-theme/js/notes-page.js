@@ -297,7 +297,6 @@ jQuery(document).ready(function($) {
     function fetchNotes(reset = false) {
         if (reset) {
             currentPage = 1;
-            $loadMoreBtn.data('next-page', 2);
             $notesList.empty();
         }
 

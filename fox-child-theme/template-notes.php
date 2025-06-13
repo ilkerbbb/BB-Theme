@@ -124,7 +124,7 @@
                                     </ul>
                                     <div class="no-notes-found-filtered" style="display:none;"><?php esc_html_e( 'Filtrelenmiş not bulunamadı.', 'fox-child' ); ?></div>
                                     <div class="notes-loader" style="display: none; text-align: center; padding: 20px;"><?php esc_html_e('Yükleniyor...', 'fox-child'); ?></div>
-                                    <button class="load-more-notes" data-next-page="2" <?php if ( $notes_query->max_num_pages <= 1 ) echo 'style="display:none;"'; ?>><?php esc_html_e('Daha Fazla', 'fox-child'); ?></button>
+                                    <button class="load-more-notes" <?php if ( $notes_query->max_num_pages <= 1 ) echo 'style="display:none;"'; ?>><?php esc_html_e('Daha Fazla', 'fox-child'); ?></button>
                                 </div>
                             </div>
                         </aside>
